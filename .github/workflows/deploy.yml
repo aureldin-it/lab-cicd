@@ -1,23 +1,33 @@
-name: Deploy App to Local VM
+name: CI/CD Pipeline Lab
 
 on:
   push:
     branches:
       - main
-      - master
-      - principal
 
 jobs:
   deploy:
     runs-on: self-hosted
 
     steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v3
+      - name: Récupération du code
+        uses: actions/checkout@v4
 
-      - name: Build et Run Docker
+      - name: Stopper et supprimer l'ancien conteneur
         run: |
-          docker build -t mon_app_cicd .
-          docker stop app_cicd_container || true
-          docker rm app_cicd_container || true
-          docker run -d --name app_cicd_container -p 8095:80 mon_app_cicd
+          docker stop mon-app-web || true
+          docker rm mon-app-web || true
+
+      - name: Build de l'image Docker
+        run: docker build -t mon-app-web:latest .
+
+      - name: Lancement du nouveau conteneur
+        run: docker run -d -p 8095:80 --name mon-app-web --restart always mon-app-web:latest
+
+      - name: Vérification post-déploiement (Healthcheck)
+        run: |
+          sleep 2
+          curl -f http://localhost:8095 || (echo "Erreur: Le service web ne répond pas !" && exit 1)
+
+      - name: Nettoyage des anciennes images Docker inutilisées
+        run: docker image prune -f
