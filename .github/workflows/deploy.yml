@@ -35,7 +35,7 @@ jobs:
       - name: Vérification post-déploiement (Healthcheck)
         run: |
           sleep 2
-          curl -f http://localhost:9999 || (echo "Erreur: Le service web ne répond pas !" && exit 1)
+          curl -f http://localhost:8095 || (echo "Erreur: Le service web ne répond pas !" && exit 1)
 
       - name: Rollback automatique en cas d'échec
         if: failure()
