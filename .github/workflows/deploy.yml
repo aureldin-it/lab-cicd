@@ -20,10 +20,14 @@ jobs:
         run: |
           trivy image --severity HIGH,CRITICAL mon-app-web:latest
 
-      - name: Stopper et supprimer l'ancien conteneur
+      - name: Préparation du Rollback (Sauvegarde de l'ancien conteneur)
         run: |
-          docker stop mon-app-web || true
-          docker rm mon-app-web || true
+          if docker ps -a --format '{{.Names}}' | grep -q "^mon-app-web$"; then
+            docker stop mon-app-web-old || true
+            docker rm mon-app-web-old || true
+            docker rename mon-app-web mon-app-web-old || true
+            docker stop mon-app-web-old || true
+          fi
 
       - name: Lancement du nouveau conteneur
         run: docker run -d -p 8095:80 --name mon-app-web --restart always mon-app-web:latest
@@ -33,5 +37,23 @@ jobs:
           sleep 2
           curl -f http://localhost:8095 || (echo "Erreur: Le service web ne répond pas !" && exit 1)
 
+      - name: Rollback automatique en cas d'échec
+        if: failure()
+        run: |
+          echo "🚨 ÉCHEC DÉTECTÉ : Annulation du déploiement et restauration du rollback..."
+          docker stop mon-app-web || true
+          docker rm mon-app-web || true
+          if docker ps -a --format '{{.Names}}' | grep -q "^mon-app-web-old$"; then
+            docker rename mon-app-web-old mon-app-web
+            docker start mon-app-web
+            echo "✅ Rollback effectué avec succès ! L'ancienne version est restaurée."
+          fi
+
+      - name: Nettoyage du conteneur de backup après succès
+        if: success()
+        run: |
+          docker rm -f mon-app-web-old || true
+
       - name: Nettoyage des anciennes images Docker inutilisées
+        if: always()
         run: docker image prune -f
