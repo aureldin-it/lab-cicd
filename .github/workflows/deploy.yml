@@ -13,13 +13,17 @@ jobs:
       - name: Récupération du code
         uses: actions/checkout@v4
 
+      - name: Build de l'image Docker
+        run: docker build -t mon-app-web:latest .
+
+      - name: Scan de sécurité de l'image Docker (Trivy)
+        run: |
+          trivy image --severity HIGH,CRITICAL mon-app-web:latest
+
       - name: Stopper et supprimer l'ancien conteneur
         run: |
           docker stop mon-app-web || true
           docker rm mon-app-web || true
-
-      - name: Build de l'image Docker
-        run: docker build -t mon-app-web:latest .
 
       - name: Lancement du nouveau conteneur
         run: docker run -d -p 8095:80 --name mon-app-web --restart always mon-app-web:latest
