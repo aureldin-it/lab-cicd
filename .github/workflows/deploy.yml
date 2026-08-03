@@ -1,0 +1,30 @@
+name: Deploy App to VM
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le code du dépôt
+        uses: actions/checkout@v3
+
+      - name: Connexion SSH & Déploiement sur la VM
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/lab-cicd || git clone https://github.com/aureldin-it/lab-cicd.git ~/lab-cicd
+            cd ~/lab-cicd
+            git pull origin main || git pull origin master
+            docker build -t mon_app_cicd .
+            docker stop app_cicd_container || true
+            docker rm app_cicd_container || true
+            docker run -d --name app_cicd_container -p 8095:80 mon_app_cicd
